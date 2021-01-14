@@ -17,7 +17,7 @@ print(json.dumps(patents[date_range[4]]["count"], indent = 4))
 
 patents["2018-09-10"]["items"][2]["summary"]
 
-patents["2018-10-09"]["items"][8]["summary"]
+patents["2020-08-31"]["items"][0]["summary"]["filingDate"] == None
 
 
 to_write_list = []
@@ -32,27 +32,59 @@ for date in date_range :
 
             print(item)
 
-            try :
-                to_write_tuple = (
-                    patents[date]["items"][item]["summary"]["applicationNum"],
-                    patents[date]["items"][item]["summary"]["applicationStatus"],
-                    patents[date]["items"][item]["summary"]["filingDate"],
-                    patents[date]["items"][item]["summary"]["lodgementDate"],
-                    patents[date]["items"][item]["summary"]["titleOfInvention"],
-                    )
-                
-                to_write_list.append(to_write_tuple)
+            if patents[date]["items"][item]["summary"]["filingDate"] == None :
+
+                try :
+                    to_write_tuple = (
+                        patents[date]["items"][item]["summary"]["applicationNum"],
+                        patents[date]["items"][item]["summary"]["applicationStatus"],
+                        "",
+                        patents[date]["items"][item]["summary"]["lodgementDate"],
+                        patents[date]["items"][item]["summary"]["titleOfInvention"],
+                        patents[date]["items"][item]["summary"]["ipc"]
+                        )
+                    
+                    to_write_list.append(to_write_tuple)
             
-            except :
-                to_write_tuple = (
-                    patents[date]["items"][item]["summary"]["applicationNum"],
-                    patents[date]["items"][item]["summary"]["applicationStatus"],
-                    "",
-                    patents[date]["items"][item]["summary"]["lodgementDate"],
-                    patents[date]["items"][item]["summary"]["titleOfInvention"],
-                    )
-                
-                to_write_list.append(to_write_tuple)
+                except :
+                    to_write_tuple = (
+                        patents[date]["items"][item]["summary"]["applicationNum"],
+                        patents[date]["items"][item]["summary"]["applicationStatus"],
+                        "",
+                        patents[date]["items"][item]["summary"]["lodgementDate"],
+                        patents[date]["items"][item]["summary"]["titleOfInvention"],
+                        ""
+                        )
+                    
+                    to_write_list.append(to_write_tuple)
+
+            else :
+
+                try :
+
+                    to_write_tuple = (
+                        patents[date]["items"][item]["summary"]["applicationNum"],
+                        patents[date]["items"][item]["summary"]["applicationStatus"],
+                        patents[date]["items"][item]["summary"]["filingDate"],
+                        patents[date]["items"][item]["summary"]["lodgementDate"],
+                        patents[date]["items"][item]["summary"]["titleOfInvention"],
+                        patents[date]["items"][item]["summary"]["ipc"]
+                        )
+
+                    to_write_list.append(to_write_tuple)
+
+                except :
+
+                    to_write_tuple = (
+                        patents[date]["items"][item]["summary"]["applicationNum"],
+                        patents[date]["items"][item]["summary"]["applicationStatus"],
+                        patents[date]["items"][item]["summary"]["filingDate"],
+                        patents[date]["items"][item]["summary"]["lodgementDate"],
+                        patents[date]["items"][item]["summary"]["titleOfInvention"],
+                        ""
+                        )
+
+                    to_write_list.append(to_write_tuple)
 
 
 
@@ -60,6 +92,8 @@ for date in date_range :
 conn = sqlite3.connect(PATH+"\\patents.db")
 
 cursor = conn.cursor()
+
+# cursor.execute("DROP TABLE summary;")
 
 # This is just for the summary table
 cursor.execute(
@@ -69,12 +103,15 @@ cursor.execute(
         applicationStatus TEXT NOT NULL,
         filingDate TEXT,
         lodgementDate TEXT NOT NULL,
-        titleOfInvention TEXT
+        titleOfInvention TEXT,
+        ipc TEXT
     );
     '''
     )
 
-cursor.executemany('INSERT INTO summary VALUES (?, ?, ?, ?, ?)', to_write_list)
+
+cursor.executemany('INSERT INTO summary VALUES (?, ?, ?, ?, ?, ?)', to_write_list)
+
 
 # Check how many rows there are
 cursor.execute(
