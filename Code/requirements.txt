@@ -2,3 +2,4 @@ requests
 seaborn
 matplotlib
 pandas
+streamlit
