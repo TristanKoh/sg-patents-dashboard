@@ -3,3 +3,4 @@ seaborn
 matplotlib
 pandas
 streamlit
+plotly
