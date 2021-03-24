@@ -1,4 +1,4 @@
-PATH = "../Data"
+PATH = "Data"
 
 import streamlit as st
 
