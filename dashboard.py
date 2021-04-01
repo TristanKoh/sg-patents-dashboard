@@ -60,9 +60,16 @@ filtered_df = filtered_df[filtered_df['applicationNum'].isin(filtered_df_ipc['ap
 ###################################
 
 # Create df for count by lodgement date
-df_dates = filtered_df["lodgementDate"].value_counts().rename_axis("lodgementDate").reset_index(name = "counts")
-df_dates = df_dates.sort_values('lodgementDate')
+#df_dates = filtered_df["lodgementDate"].value_counts().rename_axis("lodgementDate").reset_index(name = "counts")
+#df_dates = df_dates.sort_values('lodgementDate')
+df_dates = filtered_df["lodgementDate"].value_counts()
+df_dates_bymonth = df_dates.resample("MS").sum()
+df_dates_bymonth = df_dates_bymonth.rename_axis("lodgementDate").reset_index(name = "counts")
+df_dates_bymonth['year-month'] = df_dates_bymonth['lodgementDate'].dt.strftime('%Y-%m')
+df_dates_bymonth = df_dates_bymonth.sort_values('lodgementDate')
+
 ##st.dataframe(df_dates.head())
+##st.dataframe(df_dates_bymonth.head())
 
 # For count by application status
 df_appstatus = filtered_df["applicationStatus"].value_counts().rename_axis("applicationStatus").reset_index(name = "counts")
@@ -89,12 +96,13 @@ col1, col2 = st.beta_columns(2)
 # Plot timeseries for number of patents filed per day
 with col1:
     st.markdown("*Time series of number of patents filed from 10 September 2018 to 1 September 2020*")
-    fig1 = px.line(df_dates, x="lodgementDate", y="counts",
-                   labels={
-                       "lodgementDate": "Date of Lodgement",
-                       "counts": "Application Count",
-                    }
-                   )
+    fig1 = px.bar(df_dates_bymonth, x="lodgementDate", y="counts",
+                  labels={"lodgementDate": "Date of Lodgement",
+                          "counts": "Application Count"},
+                  hover_name="year-month",
+                  hover_data={"lodgementDate": False,
+                              "counts": True}
+                  )
     st.plotly_chart(fig1, use_container_width=True)
 
 # Plot bar chart for type of application status
@@ -133,7 +141,7 @@ with col2:
 
 with col3:
     st.markdown("*List of applications with selected class*")
-    user_input = st.text_input("Enter IPC class in textbox").upper()
+    user_input = st.text_input("Enter IPC class in textbox e.g. H6").upper()
     selected_appNum = filtered_df_ipc[filtered_df_ipc['class'].str.contains(user_input)]['applicationNum']
     if user_input!="":
         st.dataframe(filtered_df[filtered_df['applicationNum'].isin(selected_appNum)])
