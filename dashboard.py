@@ -3,6 +3,7 @@ PATH = "Data"
 import streamlit as st
 
 import pandas as pd
+import numpy as np
 import sqlite3
 import plotly.express as px
 import plotly.graph_objects as go
@@ -14,6 +15,7 @@ import datetime as dt
 con = sqlite3.connect(PATH+"/patents.db")
 df = pd.read_sql_query("SELECT * FROM summary", con)
 df_ipc = pd.read_sql_query("SELECT * FROM app_ipc", con)
+df_documents = pd.read_sql_query("SELECT * FROM supporting_documents", con)
 con.close()
 
 ##st.dataframe(df.head())
@@ -44,6 +46,7 @@ status_chosen = st.sidebar.multiselect('Select application status', statuses, st
 
 filtered_df = filtered_df[filtered_df['applicationStatus'].isin(status_chosen)]
 filtered_df_ipc = df_ipc[df_ipc['applicationNum'].isin(filtered_df['applicationNum'])]
+filtered_df_documents = df_documents[df_documents['applicationNum'].isin(filtered_df['applicationNum'])]
 
 # IPC section and class
 st.sidebar.title("IPC components")
@@ -54,6 +57,7 @@ class_chosen = st.sidebar.multiselect('Select IPC class', ipc_classes, ipc_class
 
 filtered_df_ipc = filtered_df_ipc[filtered_df_ipc['class'].isin(ipc_classes)]
 filtered_df = filtered_df[filtered_df['applicationNum'].isin(filtered_df_ipc['applicationNum'])]
+filtered_df_documents = filtered_df_documents[filtered_df_documents['applicationNum'].isin(filtered_df_ipc['applicationNum'])]
 
 ###################################
 ### Prep Data for Visualisation ###
@@ -82,13 +86,15 @@ df_ipc_section = filtered_df_ipc["section"].value_counts().rename_axis("ipcSecti
 # For count by IPC class symbol
 df_ipc_class = filtered_df_ipc["class"].value_counts().rename_axis("ipcClass").reset_index(name = "counts")
 
-
 ############################
 ### Chart Visualisations ###
 ############################
 
 # Dashboard elements
 st.title("Singapore Patent Dashboard")
+
+st.markdown("---")
+st.header("Summary")
 
 # ROW 1
 col1, col2 = st.beta_columns(2)
@@ -145,6 +151,36 @@ with col3:
     selected_appNum = filtered_df_ipc[filtered_df_ipc['class'].str.contains(user_input)]['applicationNum']
     if user_input!="":
         st.dataframe(filtered_df[filtered_df['applicationNum'].isin(selected_appNum)])
+
+st.markdown("---")
+st.header("Search Application by Title")
+
+# ROW 3
+user_input = st.text_input("Enter keyword e.g. Treatment").upper()
+cols = ['applicationNum', 'titleOfInvention', 'lodgementDate']
+# Filter only abstract document type
+df_abstract = filtered_df_documents[filtered_df_documents['description'].str.lower()=="abstract"]
+# Select most updated abstract for each application
+df_abstract = df_abstract.sort_values('documentLodgementDate', ascending=False)
+df_abstract = df_abstract.groupby('applicationNum').agg({'titleOfInvention': "first",
+                                                         'documentLodgementDate': "first",
+                                                         'url' : "first"}).reset_index()
+# Obtain user search keyword
+df_abstract = df_abstract[df_abstract['titleOfInvention'].str.upper().str.contains(user_input)]
+# Change url to clickable
+def make_clickable(url, text):
+    return f'<a target="_blank" href="{url}">{text}</a>'
+df_abstract['titleOfInvention'] = df_abstract.apply(lambda row: make_clickable(row['url'], row['titleOfInvention']), axis=1)
+
+# Join with summary to obtain lodgement date
+df_abstract = df_abstract.join(filtered_df[['applicationNum', 'lodgementDate']].set_index('applicationNum'), how='left', on='applicationNum')
+
+# Display
+if user_input!="":
+    st.subheader("List of applications with selected keyword")
+    st.write("*Click on title to view abstract.*")
+    st.write(df_abstract[cols].to_html(escape=False), unsafe_allow_html=True )
+
 
 ### Plot timeseries for number of patents filed per day
 ##st.text("Time series of number of patents filed from 10 September 2018 to 1 September 2020")
