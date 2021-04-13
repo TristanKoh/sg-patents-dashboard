@@ -28,6 +28,8 @@ st.set_page_config(layout="wide")
 ### Sidebar Filters ###
 #######################
 
+st.sidebar.markdown("<a href='#link_to_top'>Back to top</a>", unsafe_allow_html=True)
+
 # Start and end date
 st.sidebar.title("Date Range")
 df['lodgementDate'] = pd.to_datetime(df['lodgementDate'])
@@ -90,97 +92,101 @@ df_ipc_class = filtered_df_ipc["class"].value_counts().rename_axis("ipcClass").r
 ### Chart Visualisations ###
 ############################
 
+st.markdown("<div id='link_to_top'></div>", unsafe_allow_html=True)
+
 # Dashboard elements
 st.title("Singapore Patent Dashboard")
 
-st.markdown("---")
-st.header("Summary")
+# Summary section
+with st.beta_expander("Summary"):
+    # ROW 1
+    col1, col2 = st.beta_columns(2)
 
-# ROW 1
-col1, col2 = st.beta_columns(2)
+    # Plot timeseries for number of patents filed per day
+    with col1:
+        st.markdown("*Time series of number of patents filed from 10 September 2018 to 1 September 2020*")
+        fig1 = px.bar(df_dates_bymonth, x="lodgementDate", y="counts",
+                      labels={"lodgementDate": "Date of Lodgement",
+                              "counts": "Application Count"},
+                      hover_name="year-month",
+                      hover_data={"lodgementDate": False,
+                                  "counts": True}
+                      )
+        st.plotly_chart(fig1, use_container_width=True)
 
-# Plot timeseries for number of patents filed per day
-with col1:
-    st.markdown("*Time series of number of patents filed from 10 September 2018 to 1 September 2020*")
-    fig1 = px.bar(df_dates_bymonth, x="lodgementDate", y="counts",
-                  labels={"lodgementDate": "Date of Lodgement",
-                          "counts": "Application Count"},
-                  hover_name="year-month",
-                  hover_data={"lodgementDate": False,
-                              "counts": True}
-                  )
-    st.plotly_chart(fig1, use_container_width=True)
+    # Plot bar chart for type of application status
+    with col2:
+        st.markdown("*Barchart of the different types of application status*")
+        fig2 = px.bar(df_appstatus, x="applicationStatus", y="counts",
+                      labels={
+                           "applicationStatus": "Application Status",
+                           "counts": "Application Count",
+                        }
+                       )
+        st.plotly_chart(fig2, use_container_width=True)
 
-# Plot bar chart for type of application status
-with col2:
-    st.markdown("*Barchart of the different types of application status*")
-    fig2 = px.bar(df_appstatus, x="applicationStatus", y="counts",
-                  labels={
-                       "applicationStatus": "Application Status",
-                       "counts": "Application Count",
-                    }
-                   )
-    st.plotly_chart(fig2, use_container_width=True)
+    # ROW 2
+    col1, col2, col3 = st.beta_columns(3)
 
-# ROW 2
-col1, col2, col3 = st.beta_columns(3)
+    with col1:
+        st.markdown("*Proportion of IPC sections*")
+        fig3 = px.pie(df_ipc_section, names='ipcSection', values='counts',
+                       labels={
+                           "ipcSection": "IPC Section",
+                           "counts": "Section Count",
+                        }
+                       )
+        st.plotly_chart(fig3, use_container_width=True)
 
-with col1:
-    st.markdown("*Proportion of IPC sections*")
-    fig3 = px.pie(df_ipc_section, names='ipcSection', values='counts',
-                   labels={
-                       "ipcSection": "IPC Section",
-                       "counts": "Section Count",
-                    }
-                   )
-    st.plotly_chart(fig3, use_container_width=True)
+    with col2:
+        st.markdown("*Distribution of IPC classes*")
+        fig4 = px.bar(df_ipc_class, x="ipcClass", y="counts",
+                      labels={
+                           "ipcClass": "IPC Class",
+                           "counts": "Class Count",
+                        }
+                       )
+        st.plotly_chart(fig4, use_container_width=True)
 
-with col2:
-    st.markdown("*Distribution of IPC classes*")
-    fig4 = px.bar(df_ipc_class, x="ipcClass", y="counts",
-                  labels={
-                       "ipcClass": "IPC Class",
-                       "counts": "Class Count",
-                    }
-                   )
-    st.plotly_chart(fig4, use_container_width=True)
+    with col3:
+        st.markdown("*List of applications with selected class*")
+        user_input = st.text_input("Enter IPC class in textbox e.g. H6").upper()
+        selected_appNum = filtered_df_ipc[filtered_df_ipc['class'].str.contains(user_input)]['applicationNum']
+        if user_input!="":
+            st.dataframe(filtered_df[filtered_df['applicationNum'].isin(selected_appNum)])
 
-with col3:
-    st.markdown("*List of applications with selected class*")
-    user_input = st.text_input("Enter IPC class in textbox e.g. H6").upper()
-    selected_appNum = filtered_df_ipc[filtered_df_ipc['class'].str.contains(user_input)]['applicationNum']
-    if user_input!="":
-        st.dataframe(filtered_df[filtered_df['applicationNum'].isin(selected_appNum)])
+# Search feature section
+with st.beta_expander("Search Application by Title"):
+    # ROW 3
+    user_input = st.text_input("Enter keyword e.g. Treatment")
+    cols = ['applicationNum', 'titleOfInvention', 'lodgementDate']
+    # Filter only abstract document type
+    df_abstract = filtered_df_documents[filtered_df_documents['description'].str.lower()=="abstract"]
+    # Select most updated abstract for each application
+    df_abstract = df_abstract.sort_values('documentLodgementDate', ascending=False)
+    df_abstract = df_abstract.groupby('applicationNum').agg({'titleOfInvention': "first",
+                                                             'documentLodgementDate': "first",
+                                                             'url' : "first"}).reset_index()
+    # Obtain user search keyword
+    df_abstract = df_abstract[df_abstract['titleOfInvention'].str.upper().str.contains(user_input.upper())]
+    # Change url to clickable
+    def make_clickable(url, text):
+        return f'<a target="_blank" href="{url}">{text}</a>'
+    df_abstract['titleOfInvention'] = df_abstract.apply(lambda row: make_clickable(row['url'], row['titleOfInvention']), axis=1)
 
-st.markdown("---")
-st.header("Search Application by Title")
+    # Join with summary to obtain lodgement date
+    df_abstract = df_abstract.join(filtered_df[['applicationNum', 'lodgementDate']].set_index('applicationNum'), how='left', on='applicationNum')
 
-# ROW 3
-user_input = st.text_input("Enter keyword e.g. Treatment").upper()
-cols = ['applicationNum', 'titleOfInvention', 'lodgementDate']
-# Filter only abstract document type
-df_abstract = filtered_df_documents[filtered_df_documents['description'].str.lower()=="abstract"]
-# Select most updated abstract for each application
-df_abstract = df_abstract.sort_values('documentLodgementDate', ascending=False)
-df_abstract = df_abstract.groupby('applicationNum').agg({'titleOfInvention': "first",
-                                                         'documentLodgementDate': "first",
-                                                         'url' : "first"}).reset_index()
-# Obtain user search keyword
-df_abstract = df_abstract[df_abstract['titleOfInvention'].str.upper().str.contains(user_input)]
-# Change url to clickable
-def make_clickable(url, text):
-    return f'<a target="_blank" href="{url}">{text}</a>'
-df_abstract['titleOfInvention'] = df_abstract.apply(lambda row: make_clickable(row['url'], row['titleOfInvention']), axis=1)
+    # Display
+    if (user_input!=""):
+        if len(df_abstract)>0:
+            st.subheader("List of applications with selected keyword")
+            st.write("*Click on title to view abstract.*")
+            st.write(df_abstract[cols].to_html(escape=False), unsafe_allow_html=True)
+        else:
+            st.write("No application with keyword **", user_input, "** in title.")
 
-# Join with summary to obtain lodgement date
-df_abstract = df_abstract.join(filtered_df[['applicationNum', 'lodgementDate']].set_index('applicationNum'), how='left', on='applicationNum')
-
-# Display
-if user_input!="":
-    st.subheader("List of applications with selected keyword")
-    st.write("*Click on title to view abstract.*")
-    st.write(df_abstract[cols].to_html(escape=False), unsafe_allow_html=True )
-
+st.markdown("<br><p style='text-align:right;'><a href='#link_to_top'>Back to top</a></p>", unsafe_allow_html=True)
 
 ### Plot timeseries for number of patents filed per day
 ##st.text("Time series of number of patents filed from 10 September 2018 to 1 September 2020")

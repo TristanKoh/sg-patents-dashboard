@@ -9,7 +9,7 @@ with open(PATH + "\\patents.json") as f:
 date_range = list(patents.keys())
 
 ### Pretty prints one patent application for one day to visualise the dictionary structure
-## print(json.dumps(patents[date_range[4]]["items"][3], indent = 4))
+print(json.dumps(patents[date_range[4]]["items"][1], indent = 4))
 ##
 ##print(json.dumps(patents[date_range[4]]["items"][1]["applicationNum"], indent = 4))
 ##
@@ -298,50 +298,50 @@ date_range = list(patents.keys())
 ### For supporting documents table - not all have documents
 ### Keyed by applicationNum to match with summary table
 ##
-to_write_list_documents = []
-
-for date in date_range :
-    
-    print(date)
-    
-    if patents[date]["count"] > 0 :
-    
-        for item in range(patents[date]["count"]) :
-
-            print(item)
-
-            # Not all patents have documents, hence use try except
-            try :
-                num_documents = range(len(patents[date]["items"][item]["documents"]))
-
-                for document in num_documents :
-                    print("document:", document)
-                    
-                    to_write_tuple = (
-                        patents[date]["items"][item]["summary"]["applicationNum"],
-                        patents[date]["items"][item]["summary"]["titleOfInvention"],
-                        patents[date]["items"][item]["documents"][document]["fileName"],
-                        patents[date]["items"][item]["documents"][document]["lodgementDate"],
-                        patents[date]["items"][item]["documents"][document]["docType"]["description"],
-                        patents[date]["items"][item]["documents"][document]["url"]
-                    )
-
-                    to_write_list_documents.append(to_write_tuple)
-            
-            except :
-                pass
-                
-
-#print(to_write_list_documents[:50])
-print(len(to_write_list_documents))
+##to_write_list_documents = []
+##
+##for date in date_range :
+##    
+##    print(date)
+##    
+##    if patents[date]["count"] > 0 :
+##    
+##        for item in range(patents[date]["count"]) :
+##
+##            print(item)
+##
+##            # Not all patents have documents, hence use try except
+##            try :
+##                num_documents = range(len(patents[date]["items"][item]["documents"]))
+##
+##                for document in num_documents :
+##                    print("document:", document)
+##                    
+##                    to_write_tuple = (
+##                        patents[date]["items"][item]["summary"]["applicationNum"],
+##                        patents[date]["items"][item]["summary"]["titleOfInvention"],
+##                        patents[date]["items"][item]["documents"][document]["fileName"],
+##                        patents[date]["items"][item]["documents"][document]["lodgementDate"],
+##                        patents[date]["items"][item]["documents"][document]["docType"]["description"],
+##                        patents[date]["items"][item]["documents"][document]["url"]
+##                    )
+##
+##                    to_write_list_documents.append(to_write_tuple)
+##            
+##            except :
+##                pass
+##                
+##
+###print(to_write_list_documents[:50])
+##print(len(to_write_list_documents))
 ##
 ##
 ##
-# Creating database
-conn = sqlite3.connect(PATH+"\\patents.db")
-
-cursor = conn.cursor()
-cursor.execute("PRAGMA foreign_keys = ON;")
+### Creating database
+##conn = sqlite3.connect(PATH+"\\patents.db")
+##
+##cursor = conn.cursor()
+##cursor.execute("PRAGMA foreign_keys = ON;")
 ##
 ### cursor.execute("DROP TABLE summary;")
 ##
@@ -529,35 +529,35 @@ cursor.execute("PRAGMA foreign_keys = ON;")
 ##len(rows)
 ##len(to_write_list_grant_renewal)
 ##
-# Application supporting documents
-cursor.execute("DROP TABLE supporting_documents;")
-cursor.execute(
-    '''
-    CREATE TABLE supporting_documents (
-        applicationNum TEXT NOT NULL,
-        titleOfInvention TEXT,
-        fileName TEXT,
-        documentLodgementDate TEXT,
-        description TEXT,
-        url TEXT,
-        FOREIGN KEY (applicationNum) REFERENCES summary (applicationNum)
-    );
-    '''
-    )
-
-cursor.executemany('INSERT INTO supporting_documents VALUES (?, ?, ?, ?, ?, ?)', to_write_list_documents)
-
-cursor.execute(
-    '''
-    SELECT applicationNum
-    FROM supporting_documents;
-    '''
-)
-
-rows = cursor.fetchall()
-len(rows)
-len(to_write_list_documents)
-
-conn.commit()
-conn.close()
+### Application supporting documents
+##cursor.execute("DROP TABLE supporting_documents;")
+##cursor.execute(
+##    '''
+##    CREATE TABLE supporting_documents (
+##        applicationNum TEXT NOT NULL,
+##        titleOfInvention TEXT,
+##        fileName TEXT,
+##        documentLodgementDate TEXT,
+##        description TEXT,
+##        url TEXT,
+##        FOREIGN KEY (applicationNum) REFERENCES summary (applicationNum)
+##    );
+##    '''
+##    )
+##
+##cursor.executemany('INSERT INTO supporting_documents VALUES (?, ?, ?, ?, ?, ?)', to_write_list_documents)
+##
+##cursor.execute(
+##    '''
+##    SELECT applicationNum
+##    FROM supporting_documents;
+##    '''
+##)
+##
+##rows = cursor.fetchall()
+##len(rows)
+##len(to_write_list_documents)
+##
+##conn.commit()
+##conn.close()
 
