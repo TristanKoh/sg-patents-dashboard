@@ -98,7 +98,6 @@ print(json.dumps(patents[date_range[4]]["items"][1], indent = 4))
 ##
 ##len(patents["2018-09-10"]["items"][1]["inventors"])
 ##
-##
 ##to_write_list_inventors = []
 ##
 ##for date in date_range[:10] :
@@ -336,6 +335,44 @@ print(json.dumps(patents[date_range[4]]["items"][1], indent = 4))
 ##print(len(to_write_list_documents))
 ##
 ##
+### For PCT application
+##to_write_list_pctapp = []
+##
+##for date in date_range :
+##    
+##    print(date)
+##    
+##    if patents[date]["count"] > 0 :
+##    
+##        for item in range(patents[date]["count"]) :
+##
+##            # Not all patents have pct app, hence use try except
+##            try :
+##                num_pct_apps = range(len(patents[date]["items"][item]["pctApplication"]))
+##
+##                for pct_app in num_pct_apps :
+##
+##                    countries_filed = range(len(patents[date]["items"][item]["pctApplication"][pct_app]["pctPriorityClaimed"]))
+##
+##                    for country in countries_filed: # pct in several countries
+##                        #print("pct app:", patents[date]["items"][item]["pctApplication"][pct_app]['pctPublicationNum'])
+##                        to_write_tuple = (
+##                            patents[date]["items"][item]["summary"]["applicationNum"],
+##                            patents[date]["items"][item]["pctApplication"][pct_app]["pctApplicationNu,"],
+##                            patents[date]["items"][item]["pctApplication"][pct_app]["pctPublicationNum"],
+##                            patents[date]["items"][item]["pctApplication"][pct_app]["pctPublicationDate"],
+##                            patents[date]["items"][item]["pctApplication"][pct_app]["pctEntryDate"],
+##                            patents[date]["items"][item]["pctApplication"][pct_app]['pctPriorityClaimed'][country]["priorityApplicationNum"],
+##                            patents[date]["items"][item]["pctApplication"][pct_app]['pctPriorityClaimed'][country]["filingDate"],
+##                            patents[date]["items"][item]["pctApplication"][pct_app]['pctPriorityClaimed'][country]["country"]["code"],
+##                            patents[date]["items"][item]["pctApplication"][pct_app]['pctPriorityClaimed'][country]["country"]["description"]
+##                        )
+##                        
+##                        to_write_list_pctapp.append(to_write_tuple)
+##            
+##            except :
+##                pass
+##
 ##
 ### Creating database
 ##conn = sqlite3.connect(PATH+"\\patents.db")
@@ -530,7 +567,7 @@ print(json.dumps(patents[date_range[4]]["items"][1], indent = 4))
 ##len(to_write_list_grant_renewal)
 ##
 ### Application supporting documents
-##cursor.execute("DROP TABLE supporting_documents;")
+##cursor.execute("DROP TABLE IF EXISTS supporting_documents;")
 ##cursor.execute(
 ##    '''
 ##    CREATE TABLE supporting_documents (
@@ -555,8 +592,40 @@ print(json.dumps(patents[date_range[4]]["items"][1], indent = 4))
 ##)
 ##
 ##rows = cursor.fetchall()
-##len(rows)
-##len(to_write_list_documents)
+##print(len(rows))
+##print(len(to_write_list_documents))
+##            
+### PCT Application
+##cursor.execute("DROP TABLE IF EXISTS pct_app;")
+##cursor.execute(
+##    '''
+##    CREATE TABLE pct_app (
+##        applicationNum TEXT NOT NULL,
+##        pctAppNum TEXT,
+##        pctPublicationNum TEXT,
+##        pctPublicationDate TEXT,
+##        pctEntryDate TEXT,
+##        pctPriorityAppNum TEXT,
+##        pctFilingDate TEXT,
+##        pctCountryCode TEXT,
+##        pctCountry TEXT,
+##        FOREIGN KEY (applicationNum) REFERENCES summary (applicationNum)
+##    );
+##    '''
+##    )
+##
+##cursor.executemany('INSERT INTO pct_app VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', to_write_list_pctapp)
+##
+##cursor.execute(
+##    '''
+##    SELECT applicationNum
+##    FROM pct_app;
+##    '''
+##)
+##
+##rows = cursor.fetchall()
+##print(len(rows))
+##print(len(to_write_list_pctapp))
 ##
 ##conn.commit()
 ##conn.close()
