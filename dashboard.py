@@ -19,6 +19,7 @@ df = pd.read_sql_query("SELECT * FROM summary", con)
 df_ipc = pd.read_sql_query("SELECT * FROM app_ipc", con)
 df_documents = pd.read_sql_query("SELECT * FROM supporting_documents", con)
 df_inventors = pd.read_sql_query("SELECT * FROM inventors", con)
+df_pct = pd.read_sql_query("SELECT * FROM pct_app", con)
 con.close()
 
 ##st.dataframe(df.head())
@@ -53,6 +54,7 @@ filtered_df = filtered_df[filtered_df['applicationStatus'].isin(status_chosen)]
 filtered_df_ipc = df_ipc[df_ipc['applicationNum'].isin(filtered_df['applicationNum'])]
 filtered_df_documents = df_documents[df_documents['applicationNum'].isin(filtered_df['applicationNum'])]
 filtered_df_inventors = df_inventors[df_inventors['applicationNum'].isin(filtered_df['applicationNum'])]
+filtered_df_pct = df_pct[df_pct['applicationNum'].isin(filtered_df['applicationNum'])]
 
 # IPC section and class
 st.sidebar.title("IPC components")
@@ -65,6 +67,7 @@ filtered_df_ipc = filtered_df_ipc[filtered_df_ipc['class'].isin(ipc_classes)]
 filtered_df = filtered_df[filtered_df['applicationNum'].isin(filtered_df_ipc['applicationNum'])]
 filtered_df_documents = filtered_df_documents[filtered_df_documents['applicationNum'].isin(filtered_df_ipc['applicationNum'])]
 filtered_df_inventors = filtered_df_inventors[filtered_df_inventors['applicationNum'].isin(filtered_df_ipc['applicationNum'])]
+filtered_df_pct = filtered_df_pct[filtered_df_pct['applicationNum'].isin(filtered_df_ipc['applicationNum'])]
 
 ###################################
 ### Prep Data for Visualisation ###
@@ -83,8 +86,10 @@ df_dates_bymonth = df_dates_bymonth.sort_values('lodgementDate')
 ##st.dataframe(df_dates_bymonth.head())
 
 # For count by application status
-df_appstatus = filtered_df["applicationStatus"].value_counts().rename_axis("applicationStatus").reset_index(name = "counts")
-##st.dataframe(df_appstatus.head())
+df_appstatus = filtered_df["applicationStatus"].value_counts().rename_axis("applicationStatus").reset_index(name = "count")
+df_appstatus['percentage'] = df_appstatus['count']/df_appstatus['count'].sum()
+df_appstatus['x'] = 'placeholder'
+#st.dataframe(df_appstatus.head())
 
 # For count by IPC section symbol
 df_ipc_section = filtered_df_ipc["section"].value_counts().rename_axis("ipcSection").reset_index(name = "counts")
@@ -105,7 +110,21 @@ st.title("Singapore Patent Dashboard")
 # Summary section
 # ------------------------------------------------------
 with st.beta_expander("Summary"):
-    # ROW 1
+    
+    ### ROW 1 - Big number tiles for app status breakdown ###        
+    st.markdown("*Barchart of the different types of application status*")
+    barh = px.bar(df_appstatus, x='percentage', y='x', color='applicationStatus',
+                  orientation='h', custom_data=['count'],
+                  color_discrete_sequence=px.colors.qualitative.G10
+                   )
+    barh.update_layout(barmode='stack', xaxis_tickformat = '%',
+                       xaxis_title="",
+                       yaxis={'visible': False, 'showticklabels': False})
+    
+    barh.update_traces(hovertemplate = 'Percentage: %{x:.2%}<br>' + 'Count: %{customdata[0]}')
+    st.plotly_chart(barh, use_container_width=True)
+
+    ### ROW 2 - Time series of patent filed & percentage of pct apps ###
     col1, col2 = st.beta_columns(2)
 
     # Plot timeseries for number of patents filed per day
@@ -116,22 +135,24 @@ with st.beta_expander("Summary"):
                               "counts": "Application Count"},
                       hover_name="year-month",
                       hover_data={"lodgementDate": False,
-                                  "counts": True}
+                                  "counts": True},
+                      color_discrete_sequence=px.colors.qualitative.G10
                       )
         st.plotly_chart(fig1, use_container_width=True)
 
     # Plot bar chart for type of application status
     with col2:
-        st.markdown("*Barchart of the different types of application status*")
-        fig2 = px.bar(df_appstatus, x="applicationStatus", y="counts",
-                      labels={
-                           "applicationStatus": "Application Status",
-                           "counts": "Application Count",
-                        }
-                       )
+        st.markdown("*Proportion of Apps with PCT Application*")
+        pct_app_num = filtered_df_pct['applicationNum'].nunique()
+        non_pct_app_num = filtered_df["applicationNum"].nunique() - pct_app_num
+        fig2 = px.bar(x=['PCT Apps', 'Non-PCT Apps'],
+                      y=[pct_app_num, non_pct_app_num],
+                      color_discrete_sequence=px.colors.qualitative.G10)
+        fig2.update_traces(hovertemplate = 'Count: %{y}')
+        fig2.update_layout(xaxis_title="", yaxis_title="")
         st.plotly_chart(fig2, use_container_width=True)
 
-    # ROW 2
+    ### ROW 3 - IPC analysis ###
     col1, col2, col3 = st.beta_columns(3)
 
     with col1:
@@ -140,7 +161,7 @@ with st.beta_expander("Summary"):
                        labels={
                            "ipcSection": "IPC Section",
                            "counts": "Section Count",
-                        }
+                        }, color_discrete_sequence=px.colors.qualitative.G10
                        )
         st.plotly_chart(fig3, use_container_width=True)
 
@@ -150,7 +171,7 @@ with st.beta_expander("Summary"):
                       labels={
                            "ipcClass": "IPC Class",
                            "counts": "Class Count",
-                        }
+                        }, color_discrete_sequence=px.colors.qualitative.G10
                        )
         st.plotly_chart(fig4, use_container_width=True)
 
@@ -188,7 +209,6 @@ with st.beta_expander("Where are the Inventors from?"):
     global_map.update_geos(resolution=50, showcountries=True, countrycolor="#999999",
                            landcolor="#e3e3e3", showcoastlines=False)
     global_map.update_layout(margin={"r":0,"t":0,"l":0,"b":2})
-    #st.plotly_chart(global_map, use_container_width=True)
 
     # plotly_events allow for callback from user input
     st.subheader("World Map by Inventor Count")
@@ -222,44 +242,24 @@ with st.beta_expander("Search Application by Title"):
     # Obtain user search keyword
     df_abstract = df_abstract[df_abstract['titleOfInvention'].str.upper().str.contains(user_input.upper())]
     # Change url to clickable
-    def make_clickable(url, text):
-        return f'<a target="_blank" href="{url}">{text}</a>'
-    df_abstract['titleOfInvention'] = df_abstract.apply(lambda row: make_clickable(row['url'], row['titleOfInvention']), axis=1)
+    ## def make_clickable(url, text):
+    ##     return f'<a target="_blank" href="{url}">{text}</a>'
+    ## df_abstract['titleOfInvention'] = df_abstract.apply(lambda row: make_clickable(row['url'], row['titleOfInvention']), axis=1)
 
     # Join with summary to obtain lodgement date
-    df_abstract = df_abstract.join(filtered_df[['applicationNum', 'lodgementDate']].set_index('applicationNum'), how='left', on='applicationNum')
+    df_abstract = df_abstract.join(filtered_df[['applicationNum', 'lodgementDate']].set_index('applicationNum'),
+                                   how='left', on='applicationNum')
 
     # Display
     if (user_input!=""):
         if len(df_abstract)>0:
             st.subheader("List of applications with selected keyword")
-            st.write("*Click on title to view abstract.*")
+            st.write("<i>For more app details, search app number on\
+                     <a href='https://ip2sg.ipos.gov.sg/RPS/WP/CM/SearchSimple/IP.aspx?SearchCategory=PT' target='_blank'>this website</a></i>",
+                     unsafe_allow_html=True)
+            ## st.write("*Click on title to view abstract.*")
             st.write(df_abstract[cols].to_html(escape=False), unsafe_allow_html=True)
         else:
             st.write("No application with keyword **", user_input, "** in title.")
 
 st.markdown("<br><p style='text-align:right;'><a href='#link_to_top'>Back to top</a></p>", unsafe_allow_html=True)
-
-### Plot timeseries for number of patents filed per day
-##st.text("Time series of number of patents filed from 10 September 2018 to 1 September 2020")
-##st.vega_lite_chart(df_dates, {
-##    "mark" : {"type" : "line", "tooltip" : True},
-##    "encoding" : {
-##        "x" : {"field" : "lodgementDate", "type" : "temporal", "title" : "Date of lodgement", "timeUnit" : "yearmonthdate"},
-##        "y" : {"field" : "counts", "type" : "quantitative", "title" : "Number of filings"},
-##    },
-##    "width" : 1200,
-##    "height" : 200,
-##})
-##
-##
-##st.text("Barchart of the different types of application status")
-##st.vega_lite_chart(df_appstatus, {
-##    "mark" : {"type" : "bar", "tooltip" : True},
-##    "encoding" : {
-##        "x" : {"field" : "applicationStatus", "title" : "Application Status", "sort" : {"op" : "sum", "field" : "counts", "order" : "descending"}},
-##        "y" : {"field" : "counts", "aggregate" : "sum"}
-##    },
-##    "width" : 600,
-##    "height" : 600,
-##})
