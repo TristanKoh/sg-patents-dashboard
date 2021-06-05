@@ -20,6 +20,7 @@ df_ipc = pd.read_sql_query("SELECT * FROM app_ipc", con)
 df_documents = pd.read_sql_query("SELECT * FROM supporting_documents", con)
 df_inventors = pd.read_sql_query("SELECT * FROM inventors", con)
 df_pct = pd.read_sql_query("SELECT * FROM pct_app", con)
+df_grant = pd.read_sql_query("SELECT * FROM grant_renewal", con)
 con.close()
 
 ##st.dataframe(df.head())
@@ -97,6 +98,17 @@ df_ipc_section = filtered_df_ipc["section"].value_counts().rename_axis("ipcSecti
 
 # For count by IPC class symbol
 df_ipc_class = filtered_df_ipc["class"].value_counts().rename_axis("ipcClass").reset_index(name = "counts")
+
+# For timedelay: Time difference between grant date and filing date
+df_merged = pd.merge(df, df_grant, on = "applicationNum", how = 'left')
+df_merged = df_merged.where(df_merged.notnull(), None)
+df_timedelay = df_merged[df_merged['grantDate'].notnull()]
+df_timedelay["filingDate"] = pd.to_datetime(df_timedelay["filingDate"])
+df_timedelay["grantDate"] = pd.to_datetime(df_timedelay["grantDate"])
+df_timedelay["timedelay"] = df_timedelay["grantDate"] - df_timedelay["filingDate"]
+df_timedelay["timedelay_numeric"] = df_timedelay["timedelay"].dt.total_seconds()/60/60/24
+df_timedelay["timedelay_numeric"] = df_timedelay["timedelay_numeric"].apply(int)
+df_timedelay = df_timedelay.sort_values(by = ["filingDate"])
 
 ############################
 ### Chart Visualisations ###
@@ -181,6 +193,25 @@ with st.beta_expander("Summary"):
         selected_appNum = filtered_df_ipc[filtered_df_ipc['class'].str.contains(user_input)]['applicationNum']
         if user_input!="":
             st.dataframe(filtered_df[filtered_df['applicationNum'].isin(selected_appNum)])
+
+    ### ROW 4 - Time delay in application ###
+
+    st.markdown("*Number of days between grant date and filing date*")
+    fig5 = px.line(df_timedelay, x="filingDate", y="timedelay_numeric", 
+                    labels={"filingDate": "Date of Filing",
+                            "timedelay_numeric": "Number of days"},
+                    hover_data={"filingDate": "|%B %d, %Y",
+                                "timedelay_numeric" : True},
+                    color_discrete_sequence=px.colors.qualitative.G10
+                    )
+
+    fig5.update_xaxes(rangeslider_visible = True)
+    fig5.add_trace(go.Scatter(x = df_timedelay["filingDate"], 
+                    y = df_timedelay["timedelay_numeric"], mode = "markers",
+                    hoverinfo = "skip",
+                    marker = dict(size = 3, color = 'LightBlue')))
+    fig5.update_layout(hovermode = 'x unified')
+    st.plotly_chart(fig5, use_container_width=True)
 
 
 # Inventors' backgroun section
